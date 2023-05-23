@@ -1,0 +1,74 @@
+import numpy as np
+from scipy.special import kv, gamma
+import matplotlib.pyplot as plt
+import pandas as pd
+
+
+def stefhest_coefficients(N):
+    ln2 = np.log(2)
+    coef = np.zeros(N)
+    for n in range(1, N + 1):
+        v = 0
+        k_range = range(0, int(n / 2) + 1)
+        for k in k_range:
+            if k == 0 and n % 2 == 0:
+                continue
+            v += (np.power(k, N / 2) * gamma(2 * k + 1)) / (gamma(N / 2 - k + 1) * gamma(k + 1) * gamma(k) * gamma(n - k + 1) * gamma(2 * k - n + 1))
+        coef[n - 1] = v * np.power(-1, n + 1)
+    return coef / ln2
+
+def stefhest_inverse(L_func, t, N=8):
+    ln2 = np.log(2)
+    coef = stefhest_coefficients(N)
+    s_values = np.arange(1, N + 1) * ln2 / t
+    L_values = np.array([L_func(s) for s in s_values])
+    return (ln2 / t) * np.sum(coef * L_values)
+
+# Define the custom functions for each equation
+def custom_L_func_A(s, r, n, Om, La, D):
+    L_custom = -(((1-n)*((r)**((1-n)/2))*(kv(((1-n)/(3-n)),( (2/(3-n))*((r)**((3-n)/2))*(np.sqrt(s*(((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))) )) ) /(2*(s)*(kv(((1-n)/(3-n)),((2/(3-n))*(np.sqrt(s*(((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))))))) - ( ((r)**(((1-n)/2)+((3-n)/2)))* (np.sqrt(s*(((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n))))))* ( -(kv((((1-n)/(3-n))-1),(( (2/(3-n))*((r)**((3-n)/2))*(np.sqrt(s*((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))) )) )-(kv((((1-n)/(3-n))+1),(( (2/(3-n))*((r)**((3-n)/2))*(np.sqrt(s*((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))) )) ) ) ) /(2*(s)*(kv(((1-n)/(3-n)),((2/(3-n))*(np.sqrt(s*((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))))))))
+    return L_custom
+
+def custom_L_func_B(s, r, n, Om, La, D):
+    L_custom = -( ( (1-n)*((r)**((1-n)/2))*(kv(((1-n)/(3-n)),( (2/(3-n))*((r)**((3-n)/2))*(np.sqrt(s*(((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))) )) ) ) /(2*(s**2)*(kv(((1-n)/(3-n)),((2/(3-n))*(np.sqrt(s*(((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))))))) - ( ( ((r)**(((1-n)/2)+((3-n)/2)))* (np.sqrt(s*(((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n))))))* ( -(kv((((1-n)/(3-n))-1),(( (2/(3-n))*((r)**((3-n)/2))*(np.sqrt(s*((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))) )) )-(kv((((1-n)/(3-n))+1),(( (2/(3-n))*((r)**((3-n)/2))*(np.sqrt(s*((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))) )) ) ) ) /(2*(s**2)*(kv(((1-n)/(3-n)),((2/(3-n))*(np.sqrt(s*((Om*s*(1-Om))+(La*n*D**(1-n)))/((s*(1-Om))+(La*n*D**(1-n)))))))))) )
+    return L_custom
+
+def custom_drawdown(t, r, n, Om, La, D, equation):
+    L_func = lambda s: equation(s, r, n, Om, La, D)
+    return stefhest_inverse(L_func, t)
+
+# Use a dictionary to map the selected equation to the appropriate function
+equations = {
+    'A': custom_L_func_A, # Dimensionless rate under constant pressure
+    'B': custom_L_func_B, # Dimensionless volume under constant pressure
+    
+}
+
+# Example parameters
+n_values = [0.1, 0.3, 0.5, 0.7, 0.9]  # List of Pseudoplasticity values
+r = 1.001  # Radius
+Om = 1e-3  # Storativity (dimensionless)
+La = 1e-8  # Inter-porosity flow coefficient (dimensionless)
+D = 1  # D parameter
+
+# Calculate L_func for a range of t values
+t_values = np.logspace(-2, 11, num=100)
+
+# Create a figure for plotting
+plt.figure()
+
+# Choose the desired equation
+selected_equation = 'B'  # Change this to the desired equation ('A', 'B')
+equation_function = equations[selected_equation]
+
+# Loop through the different n values and plot the results
+for n in n_values:
+    L_func_results = []
+    for t in t_values:
+        drawdown = custom_drawdown(t, r, n, Om, La, D, equation_function)
+        L_func_results.append(drawdown)
+    
+    # Plot the log-log results for the current n value
+    plt.loglog(t_values, L_func_results, label=f'n = {n}')
+
+    #
