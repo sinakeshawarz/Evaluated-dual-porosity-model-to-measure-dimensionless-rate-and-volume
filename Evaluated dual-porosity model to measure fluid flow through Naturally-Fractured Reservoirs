@@ -70,5 +70,3 @@ for n in n_values:
     
     # Plot the log-log results for the current n value
     plt.loglog(t_values, L_func_results, label=f'n = {n}')
-
-    #
